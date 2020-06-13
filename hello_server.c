@@ -1,57 +1,54 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
+#include<stdio.h>
+#include<string.h>
+#include<unistd.h>
+#include<netinet/in.h>
+#include<sys/socket.h>
 
-void error_handling(char *message);
+#define PORT 9000
 
-int main(int argc, char *argv[])
+char buffer[BUFSIZ] = "hello, world";
+
+int main()
 {
-	int serv_sock;
-	int clnt_sock;
+	int c_socket, s_socket;
+	struct sockaddr_in s_addr, c_addr;
+	int len;
+	int n;
+	// socket is a telephone so, define a telephone to communicate
+	// the name of telephone is s_socket.
+	s_socket = socket(PF_INET, SOCK_STREAM, 0);
 
-	struct sockaddr_in serv_addr;
-	struct sockaddr_in clnt_addr;
-	socklen_t clnt_addr_size;
+	// define an address of incomming call
+	// s_addr is the incomming call receiving address
+	memset(&s_addr, 0, sizeof(s_addr));
+	s_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	s_addr.sin_family = AF_INET;
+	s_addr.sin_port = htons(PORT);
 
-	char message[]="Hello World!";
-	
-	if(argc!=2){
-		printf("Usage : %s <port>\n", argv[0]);
-		exit(1);
+	// binding is to connect incomming call to a telephone, socket
+	if(bind(s_socket,(struct sockaddr *) &s_addr, sizeof(s_addr)) == -1) {
+		printf("Can't bind\n");
+		return -1;
+	}
+
+	// listening is to grant a communication right
+	// example shows it asks 5 times to get a comm right
+	if(listen(s_socket, 5) == -1) {
+		printf("listen failed\n");
+		return -1;
 	}
 	
-	serv_sock=socket(PF_INET, SOCK_STREAM, 0);
-	if(serv_sock == -1)
-		error_handling("socket() error");
-	
-	memset(&serv_addr, 0, sizeof(serv_addr));
-	serv_addr.sin_family=AF_INET;
-	serv_addr.sin_addr.s_addr=htonl(INADDR_ANY);
-	serv_addr.sin_port=htons(atoi(argv[1]));
-	
-	if(bind(serv_sock, (struct sockaddr*) &serv_addr, sizeof(serv_addr))==-1 )
-		error_handling("bind() error"); 
-	
-	if(listen(serv_sock, 5)==-1)
-		error_handling("listen() error");
-	
-	clnt_addr_size=sizeof(clnt_addr);  
-	clnt_sock=accept(serv_sock, (struct sockaddr*)&clnt_addr,&clnt_addr_size);
-	if(clnt_sock==-1)
-		error_handling("accept() error");  
-	
-	write(clnt_sock, message, sizeof(message));
-	close(clnt_sock);	
-	close(serv_sock);
-	return 0;
-}
+	// accept() receive incomming call and hand it over to another telephone
+	while(1) {
 
-void error_handling(char *message)
-{
-	fputs(message, stderr);
-	fputc('\n', stderr);
-	exit(1);
+		len = sizeof(c_addr);
+		c_socket = accept(s_socket, (struct sockaddr *) &c_addr, &len);
+		n = strlen(buffer);
+		write(c_socket, buffer, n);
+
+		close(c_socket);
+	}
+
+	close(s_socket);
+	return 0;
 }
